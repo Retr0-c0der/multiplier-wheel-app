@@ -1,12 +1,13 @@
 const CACHE_NAME = 'multiplier-wheel-v1';
+const REPO_NAME = '/multiplier-wheel-app';
 const urlsToCache = [
-  './',
-  './index.html',
-  './manifest.json',
-  './images/favicon-16x16.png',
-  './images/favicon-32x32.png',
-  './images/android-chrome-192x192.png',
-  './images/android-chrome-512x512.png'
+  `${REPO_NAME}/`,
+  `${REPO_NAME}/index.html`,
+  `${REPO_NAME}/manifest.json`,
+  `${REPO_NAME}/images/favicon-16x16.png`,
+  `${REPO_NAME}/images/favicon-32x32.png`,
+  `${REPO_NAME}/images/android-chrome-192x192.png`,
+  `${REPO_NAME}/images/android-chrome-512x512.png`
 ];
 
 // Install event - cache resources
@@ -33,7 +34,7 @@ self.addEventListener('fetch', event => {
       .catch(() => {
         // If both cache and network fail, return a fallback page
         if (event.request.destination === 'document') {
-          return caches.match('./index.html');
+          return caches.match(`${REPO_NAME}/index.html`);
         }
       })
   );
