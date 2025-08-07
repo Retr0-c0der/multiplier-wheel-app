@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Team Lottery Spinner</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        #app {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 480px;
+        }
+        
+        h1 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            margin-top: 0;
+        }
+        
+        .wheel-container { 
+            position: relative; 
+            width: 350px; 
+            height: 350px; 
+            margin: 0 auto 1.5rem auto; 
+            border-radius: 50%; 
+            overflow: hidden; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); 
+            background-color: #f0f0f0;
+        }
+        
+        canvas { 
+            display: block; 
+            width: 100%; 
+            height: 100%; 
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1); 
+        }
+        
+        .pointer { 
+            position: absolute; 
+            top: -20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: 0; 
+            height: 0; 
+            border-left: 20px solid transparent; 
+            border-right: 20px solid transparent; 
+            border-bottom: 30px solid #EF4444; 
+            z-index: 10;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+        }
+        
+        .result-overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.9); 
+            color: white; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            text-align: center; 
+            opacity: 0; 
+            visibility: hidden; 
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out; 
+            border-radius: 50%; 
+            padding: 20px; 
+            box-sizing: border-box;
+        }
+        
+        .result-overlay.active { 
+            opacity: 1; 
+            visibility: visible; 
+        }
+        
+        .winning-text {
+            color: #fbbf24;
+            margin-top: 0.5rem;
+        }
+        
+        #spinButton {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            font-size: 1.25rem;
+            font-weight: bold;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            transform: scale(1);
+        }
+        
+        #spinButton:hover:not(:disabled) {
+            background: linear-gradient(135deg, #059669, #047857);
+            transform: scale(1.05);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+        }
+        
+        #spinButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+        
+        #resetButton {
+            margin-top: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 1.125rem;
+            transition: all 0.3s ease;
+        }
+        
+        #resetButton:hover {
+            background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .spin-animation {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Multiplier Pop-up</h1>
+        <div class="wheel-container">
+            <canvas id="lotteryWheel" width="350" height="350"></canvas>
+            <div class="pointer"></div>
+            <div id="resultOverlay" class="result-overlay">
+                <p>Winner:</p>
+                <p id="winningTeamText" class="winning-text"></p>
+                <button id="resetButton">Spin Again</button>
+            </div>
+        </div>
+        <button id="spinButton">Spin the Wheel!</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('lotteryWheel');
+        const ctx = canvas.getContext('2d');
+        const spinButton = document.getElementById('spinButton');
+        const resultOverlay = document.getElementById('resultOverlay');
+        const winningTeamText = document.getElementById('winningTeamText');
+        const resetButton = document.getElementById('resetButton');
+        
+        const teams = ["1X", "2X", "3X", "4X"];
+        const colors = ["#FF8C00", "#1E90FF", "#DA70D6", "#ADFF2F"];
+        let isSpinning = false;
+        
+        function drawWheel() {
+            const arcSize = (2 * Math.PI) / teams.length;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) * 0.9;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            
+            for (let i = 0; i < teams.length; i++) {
+                const angle = i * arcSize;
+                
+                // Draw segment
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, angle, angle + arcSize);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw text
+                ctx.save();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 24px Inter';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 4;
+                ctx.translate(centerX, centerY);
+                ctx.rotate(angle + arcSize / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText(teams[i], radius * 0.65, 8);
+                ctx.restore();
+            }
+            
+            // Draw center circle
+            ctx.beginPath();
+            ctx.fillStyle = '#333333';
+            ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        function spinWheel() {
+            if (isSpinning) return;
+            
+            isSpinning = true;
+            spinButton.disabled = true;
+            spinButton.textContent = 'Spinning...';
+            resultOverlay.classList.remove('active');
+            
+            let hasClosed = false;
+            
+            const winningSegmentIndex = Math.floor(Math.random() * teams.length);
+            const degreesPerSegment = 360 / teams.length;
+            const angleOfWinningSegmentCenter = (winningSegmentIndex * degreesPerSegment) + (degreesPerSegment / 2);
+            const randomOffset = (Math.random() - 0.5) * (degreesPerSegment * 0.8);
+            const targetRotation = (5 * 360) + 270 - angleOfWinningSegmentCenter + randomOffset;
+            
+            canvas.style.transition = 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            canvas.style.transform = `rotate(${targetRotation}deg)`;
+            
+            const handleTransitionEnd = () => {
+                if (hasClosed) return;
+                
+                isSpinning = false;
+                spinButton.disabled = false;
+                spinButton.textContent = 'Spin the Wheel!';
+                
+                const finalRotation = targetRotation % 360;
+                canvas.style.transition = 'none';
+                canvas.style.transform = `rotate(${finalRotation}deg)`;
+                
+                winningTeamText.textContent = teams[winningSegmentIndex];
+                resultOverlay.classList.add('active');
+                
+                setTimeout(() => {
+                    if (hasClosed) return;
+                    hasClosed = true;
+                    // WAILS API CALL: This calls the Shutdown method on the App struct in main.go
+                    if (window.go && window.go.main && window.go.main.App && window.go.main.App.Shutdown) {
+                        window.go.main.App.Shutdown();
+                    } else {
+                        console.log('Would close app - Winner:', teams[winningSegmentIndex]);
+                    }
+                }, 3000);
+                
+                canvas.removeEventListener('transitionend', handleTransitionEnd);
+            };
+            
+            canvas.addEventListener('transitionend', handleTransitionEnd);
+        }
+        
+        function resetWheel() {
+            resultOverlay.classList.remove('active');
+            winningTeamText.textContent = '';
+            canvas.style.transition = 'transform 0.5s ease-out';
+            canvas.style.transform = 'rotate(0deg)';
+        }
+        
+        spinButton.addEventListener('click', spinWheel);
+        resetButton.addEventListener('click', resetWheel);
+        
+        // Initial draw
+        drawWheel();
+        
+        // Add some visual feedback
+        canvas.addEventListener('mouseover', () => {
+            if (!isSpinning) {
+                canvas.style.filter = 'brightness(1.1)';
+            }
+        });
+        
+        canvas.addEventListener('mouseout', () => {
+            canvas.style.filter = 'brightness(1)';
+        });
+    </script>
+
+        <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          }).catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
+
+</body>
+</html>
