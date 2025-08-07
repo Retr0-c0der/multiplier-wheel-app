@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Team Lottery Spinner</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#5e35b1"/>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         
@@ -265,12 +269,9 @@
                 setTimeout(() => {
                     if (hasClosed) return;
                     hasClosed = true;
-                    // WAILS API CALL: This calls the Shutdown method on the App struct in main.go
-                    if (window.go && window.go.main && window.go.main.App && window.go.main.App.Shutdown) {
-                        window.go.main.App.Shutdown();
-                    } else {
-                        console.log('Would close app - Winner:', teams[winningSegmentIndex]);
-                    }
+                    // For a PWA, we don't need to close the app, so we can comment this out or remove it.
+                    // if (window.go && ...) { window.go.main.App.Shutdown(); }
+                    console.log('Would close app - Winner:', teams[winningSegmentIndex]);
                 }, 3000);
                 
                 canvas.removeEventListener('transitionend', handleTransitionEnd);
@@ -304,7 +305,7 @@
         });
     </script>
 
-        <script>
+    <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').then(registration => {
@@ -315,6 +316,5 @@
         });
       }
     </script>
-
 </body>
 </html>
