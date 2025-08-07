@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Team Lottery Spinner</title>
     
     <link rel="manifest" href="manifest.json">
@@ -15,11 +16,12 @@
             margin: 0;
             padding: 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            user-select: none;
         }
         
         #app {
@@ -30,7 +32,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 480px;
+            width: min(480px, 90vw);
+            max-width: 480px;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
         }
         
         h1 {
@@ -44,8 +49,8 @@
         
         .wheel-container { 
             position: relative; 
-            width: 350px; 
-            height: 350px; 
+            width: min(350px, 80vw);
+            height: min(350px, 80vw);
             margin: 0 auto 1.5rem auto; 
             border-radius: 50%; 
             overflow: hidden; 
@@ -159,6 +164,25 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.02); }
         }
+
+        @media (max-width: 600px) {
+            #app {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .result-overlay {
+                font-size: 1.8rem;
+            }
+            
+            #spinButton {
+                font-size: 1.1rem;
+                padding: 0.875rem 1.75rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -269,10 +293,32 @@
                 setTimeout(() => {
                     if (hasClosed) return;
                     hasClosed = true;
-                    // For a PWA, we don't need to close the app, so we can comment this out or remove it.
-                    // if (window.go && ...) { window.go.main.App.Shutdown(); }
-                    console.log('Would close app - Winner:', teams[winningSegmentIndex]);
-                }, 3000);
+                    console.log('Winner:', teams[winningSegmentIndex]);
+                    
+                    // For PWA on Mac, we'll fade out and reset after showing result
+                    setTimeout(() => {
+                        // Fade out the result
+                        resultOverlay.style.transition = 'opacity 1s ease-out';
+                        resultOverlay.style.opacity = '0';
+                        
+                        setTimeout(() => {
+                            // Reset the wheel for next use
+                            resetWheel();
+                            
+                            // Optional: minimize window if possible (Mac PWA)
+                            if (navigator.userAgent.includes('Macintosh')) {
+                                try {
+                                    // This will minimize the window on Mac if it's a PWA
+                                    if (window.matchMedia('(display-mode: standalone)').matches) {
+                                        console.log('PWA detected - ready for next spin');
+                                    }
+                                } catch (e) {
+                                    console.log('Desktop PWA ready for next use');
+                                }
+                            }
+                        }, 1000);
+                    }, 1000);
+                }, 2000);
                 
                 canvas.removeEventListener('transitionend', handleTransitionEnd);
             };
@@ -282,6 +328,8 @@
         
         function resetWheel() {
             resultOverlay.classList.remove('active');
+            resultOverlay.style.opacity = '1';
+            resultOverlay.style.transition = 'opacity 0.5s ease-in-out, visibility 0.5s ease-in-out';
             winningTeamText.textContent = '';
             canvas.style.transition = 'transform 0.5s ease-out';
             canvas.style.transform = 'rotate(0deg)';
@@ -303,18 +351,31 @@
         canvas.addEventListener('mouseout', () => {
             canvas.style.filter = 'brightness(1)';
         });
+
+        // Handle canvas resize for responsiveness
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = Math.min(container.clientWidth, container.clientHeight);
+            canvas.width = size;
+            canvas.height = size;
+            drawWheel();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
     </script>
 
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.service-worker.register('sw.js').then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          }).catch(err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
+        // Service Worker Registration - FIXED
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
     </script>
 </body>
 </html>
